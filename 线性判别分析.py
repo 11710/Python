@@ -14,12 +14,8 @@ miu1 = np.mean(x1, axis=0).reshape((-1, 1))
 cov0 = np.cov(x0, rowvar=False)
 cov1 = np.cov(x1, rowvar=False)
 #求出w,转换为矩阵
-
 S_w = np.mat(cov0 + cov1)
-print(S_w)
-print(S_w.I)
 Omiga = S_w.I * (miu0 - miu1)
-print(Omiga)
 #画出点、直线
 plt.title('Linear Discriminant Analysis')
 plt.xlabel('density'.title())
