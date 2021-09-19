@@ -1,3 +1,4 @@
+# -*- coding: utf-8 -*-
 #机器学习线性判别分析
 import numpy as np
 import matplotlib.pyplot as plt
@@ -10,17 +11,23 @@ x1 = np.array([i[8:] for i in Data]).T
 
 miu0 = np.mean(x0, axis=0).reshape((-1, 1))
 miu1 = np.mean(x1, axis=0).reshape((-1, 1))
+print("u0的均值为：\n",miu0)
+print("u1的均值为：\n",miu1)
 #求协方差
 cov0 = np.cov(x0, rowvar=False)
 cov1 = np.cov(x1, rowvar=False)
 #求出w,转换为矩阵
 S_w = np.mat(cov0 + cov1)
+print("类内散度矩阵为: \n",S_w)
 Omiga = S_w.I * (miu0 - miu1)
 #画出点、直线
+print("w的值为：\n",Omiga)
 plt.title('Linear Discriminant Analysis')
 plt.xlabel('density'.title())
 plt.ylabel('sugar rate'.title())
-plt.scatter(x0[:, 0], x0[:, 1], c='b', label='positive sample', marker = '*')
-plt.scatter(x1[:, 0], x1[:, 1], c='r', label='negative sample', marker = 'o')
-plt.plot([0, 1], [0, -Omiga[0] / Omiga[1]], label='y')
+ps = plt.scatter(x0[:, 0], x0[:, 1], c='b', marker = '*')
+ns = plt.scatter(x1[:, 0], x1[:, 1], c='r', marker = 'o')
+plt.legend((ps, ns), ('positive sample', 'negative sample'))
+plt.plot([0, 1], [0, -Omiga[0] / Omiga[1]])
+# 绘制分界线
 plt.show()
