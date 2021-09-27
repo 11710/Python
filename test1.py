@@ -70,8 +70,8 @@ def createPlot(inTree):
     createPlot.ax1 = plt.subplot(111, frameon=False, **axprops)
     plotTree.totalW = float(getNumLeafs(inTree))
     plotTree.totalD = float(getTreeDepth(inTree))
-    plotTree.xOff = -0.5 / plotTree.totalW;
-    plotTree.yOff = 1.0;
+    plotTree.xOff = -0.5 / plotTree.totalW
+    plotTree.yOff = 1.0
     plotTree(inTree, (0.5, 1.0), '')
     plt.show()
 
@@ -149,7 +149,7 @@ def splitDataSet(dataSet, axis, value):
 
 def calcInfoGainForSeries(dataSet, i, baseEntropy):
     """
-    计算连续值的信息增益
+    计算连续值的信息增益和信息增益率
     :param dataSet:整个数据集
     :param i: 对应的特征值下标
     :param baseEntropy: 基础信息熵
@@ -159,6 +159,8 @@ def calcInfoGainForSeries(dataSet, i, baseEntropy):
     maxInfoGain = 0.0
     # 最好的划分点
     bestMid = -1
+    # 记录信息增益率
+    GainRatio = 0.0
     # 得到数据集中所有的当前特征值列表
     featList = [example[i] for example in dataSet]
     # 得到分类列表
@@ -170,26 +172,30 @@ def calcInfoGainForSeries(dataSet, i, baseEntropy):
     numberForFeatList = len(sortedFeatList)
     # 计算划分点，保留三位小数
     midFeatList = [round((sortedFeatList[i][0] + sortedFeatList[i+1][0])/2.0, 3)for i in range(numberForFeatList - 1)]
-    # 保存prob=|Dv|/|D|权重
-    prob=0
     # 计算出各个划分点信息增益
     for mid in midFeatList:
         # 将连续值划分为不大于当前划分点和大于当前划分点两部分
         eltDataSet, gtDataSet = splitDataSetForSeries(dataSet, i, mid)
         # 计算两部分的特征值熵和权重的乘积之和
         newEntropy = len(eltDataSet)/len(sortedFeatList)*calcShannonEnt(eltDataSet) + len(gtDataSet)/len(sortedFeatList)*calcShannonEnt(gtDataSet)
-        prob = len(eltDataSet)/len(sortedFeatList)
+        # 保存prob=|Dv|/|D|权重
+        prob1 = float(len(eltDataSet))/len(sortedFeatList)
+        prob2 = float(len(gtDataSet))/len(sortedFeatList)
+        IV = prob1*log(prob1, 2) + prob2*log(prob2,2)
         # 计算出信息增益
         infoGain = baseEntropy - newEntropy
+        # 计算出信息增益率
+        ratio = -infoGain/IV
         # print('当前划分值为：' + str(mid) + '，此时的信息增益为：' + str(infoGain))
         if infoGain > maxInfoGain:
             bestMid = mid
             maxInfoGain = infoGain
-    return maxInfoGain, bestMid, prob
+            GainRatio = ratio
+    return maxInfoGain, bestMid, GainRatio
 
 def calcInfoGain(dataSet ,featList, i, baseEntropy):
     """
-    计算信息增益
+    计算信息增益和信息增益率
     :param dataSet: 数据集
     :param featList: 当前特征列表
     :param i: 当前特征值下标
@@ -200,6 +206,8 @@ def calcInfoGain(dataSet ,featList, i, baseEntropy):
     uniqueVals = set(featList)
     # 新的熵，代表当前特征值的熵
     newEntropy = 0.0
+    # 计算信息增益率中的IV
+    IV = 0
     # 遍历现在有的特征的可能性
     for value in uniqueVals:
         # 在全部数据集的当前特征位置上，找到该特征值等于当前值的集合
@@ -208,18 +216,19 @@ def calcInfoGain(dataSet ,featList, i, baseEntropy):
         prob = len(subDataSet) / float(len(dataSet))
         # 计算出当前特征值的熵
         newEntropy += prob * calcShannonEnt(subDataSet)
+        # 计算出当前的IV
+        IV += prob*log(prob,2)
+
     # 计算出“信息增益”
     infoGain = baseEntropy - newEntropy
-    return infoGain
+    # 计算出信息增益率
+    GainRatio = 0
+    if IV!=0:
+        GainRatio = -infoGain/IV
+    return infoGain, GainRatio
 
-def calcGainRatio(dataSet,infoGain):
-    """
-    计算信息增益率
-    :param infoGain: 信息增益
-    :return:
-    """
 
-def chooseBestFeatureToSplit(dataSet, labels):
+def chooseBestFeatureToSplit(dataSet, labels, ID3=True,C45=False):
     """
     选择最好的数据集划分特征，根据信息增益值来计算，可处理连续值
     :param dataSet:
@@ -231,26 +240,39 @@ def chooseBestFeatureToSplit(dataSet, labels):
     baseEntropy = calcShannonEnt(dataSet)
     # 基础信息增益为0.0
     bestInfoGain = 0.0
+    # 基础信息增益率为0.0
+    bestGainRatio = 0.0
     # 最好的特征值
     bestFeature = -1
     # 标记当前最好的特征值是不是连续值
     flagSeries = 0
     # 如果是连续值的话，用来记录连续值的划分点
     bestSeriesMid = 0.0
+    bestMid = 0.0
     # 对每个特征值进行求信息熵
     for i in range(numFeatures):
         # 得到数据集中所有的当前特征值列表
         featList = [example[i] for example in dataSet]
         if isinstance(featList[0], str):
-            infoGain = calcInfoGain(dataSet, featList, i, baseEntropy)
+            infoGain,GainRatio = calcInfoGain(dataSet, featList, i, baseEntropy)
         else:
             # print('当前划分属性为：' + str(labels[i]))
-            infoGain, bestMid = calcInfoGainForSeries(dataSet, i, baseEntropy)
+            infoGain, bestMid, GainRatio = calcInfoGainForSeries(dataSet, i, baseEntropy)
         # print('当前特征值为：' + labels[i] + '，对应的信息增益值为：' + str(infoGain))
         # 如果当前的信息增益比原来的大
-        if infoGain > bestInfoGain:
+        if infoGain > bestInfoGain and ID3:
             # 最好的信息增益
             bestInfoGain = infoGain
+            # 新的最好的用来划分的特征值
+            bestFeature = i
+            flagSeries = 0
+            if not isinstance(dataSet[0][bestFeature], str):
+                flagSeries = 1
+                bestSeriesMid = bestMid
+        # 如果当前的信息增益率比原来的大
+        if GainRatio >  bestGainRatio and C45:
+            # 最好的信息增益率
+            bestGainRatio = GainRatio
             # 新的最好的用来划分的特征值
             bestFeature = i
             flagSeries = 0
@@ -268,44 +290,24 @@ def createDataSet():
     创建测试的数据集，里面的数值中具有连续值
     :return:
     """
-    dataSet = [
-        # 1
-        ['青绿', '蜷缩', '浊响', '清晰', '凹陷', '硬滑', 0.697, 0.460, '好瓜'],
-        # 2
-        ['乌黑', '蜷缩', '沉闷', '清晰', '凹陷', '硬滑', 0.774, 0.376, '好瓜'],
-        # 3
-        ['乌黑', '蜷缩', '浊响', '清晰', '凹陷', '硬滑', 0.634, 0.264, '好瓜'],
-        # 4
-        ['青绿', '蜷缩', '沉闷', '清晰', '凹陷', '硬滑', 0.608, 0.318, '好瓜'],
-        # 5
-        ['浅白', '蜷缩', '浊响', '清晰', '凹陷', '硬滑', 0.556, 0.215, '好瓜'],
-        # 6
-        ['青绿', '稍蜷', '浊响', '清晰', '稍凹', '软粘', 0.403, 0.237, '好瓜'],
-        # 7
-        ['乌黑', '稍蜷', '浊响', '稍糊', '稍凹', '软粘', 0.481, 0.149, '好瓜'],
-        # 8
-        ['乌黑', '稍蜷', '浊响', '清晰', '稍凹', '硬滑', 0.437, 0.211, '好瓜'],
-        # ----------------------------------------------------
-        # 9
-        ['乌黑', '稍蜷', '沉闷', '稍糊', '稍凹', '硬滑', 0.666, 0.091, '坏瓜'],
-        # 10
-        ['青绿', '硬挺', '清脆', '清晰', '平坦', '软粘', 0.243, 0.267, '坏瓜'],
-        # 11
-        ['浅白', '硬挺', '清脆', '模糊', '平坦', '硬滑', 0.245, 0.057, '坏瓜'],
-        # 12
-        ['浅白', '蜷缩', '浊响', '模糊', '平坦', '软粘', 0.343, 0.099, '坏瓜'],
-        # 13
-        ['青绿', '稍蜷', '浊响', '稍糊', '凹陷', '硬滑', 0.639, 0.161, '坏瓜'],
-        # 14
-        ['浅白', '稍蜷', '沉闷', '稍糊', '凹陷', '硬滑', 0.657, 0.198, '坏瓜'],
-        # 15
-        ['乌黑', '稍蜷', '浊响', '清晰', '稍凹', '软粘', 0.360, 0.370, '坏瓜'],
-        # 16
-        ['浅白', '蜷缩', '浊响', '模糊', '平坦', '硬滑', 0.593, 0.042, '坏瓜'],
-        # 17
-        ['青绿', '蜷缩', '沉闷', '稍糊', '稍凹', '硬滑', 0.719, 0.103, '坏瓜']
-    ]
+    dataSet =[['青绿','蜷缩','浊响','清晰','凹陷','硬滑',0.697,0.460,1],
+             ['乌黑','蜷缩','沉闷','清晰','凹陷','硬滑',0.774,0.376,1],
+             ['乌黑','蜷缩','浊响','清晰','凹陷','硬滑',0.634,0.264,1],
+             ['青绿','蜷缩','沉闷','清晰','凹陷','硬滑',0.608,0.318,1],
+             ['浅白','蜷缩','浊响','清晰','凹陷','硬滑',0.556,0.215,1],
+             ['青绿','稍蜷','浊响','清晰','稍凹','软粘',0.403,0.237,1],
+             ['乌黑','稍蜷','浊响','稍糊','稍凹','软粘',0.481,0.149,1],
+             ['乌黑','稍蜷','浊响','清晰','稍凹','硬滑',0.437,0.211,1],
 
+             ['乌黑','稍蜷','沉闷','稍糊','稍凹','硬滑',0.666,0.091,0],
+             ['青绿','硬挺','清脆','清晰','平坦','软粘',0.243,0.267,0],
+             ['浅白','硬挺','清脆','模糊','平坦','硬滑',0.245,0.057,0],
+             ['浅白','蜷缩','浊响','模糊','平坦','软粘',0.343,0.099,0],
+             ['青绿','稍蜷','浊响','稍糊','凹陷','硬滑',0.639,0.161,0],
+             ['浅白','稍蜷','沉闷','稍糊','凹陷','硬滑',0.657,0.198,0],
+             ['乌黑','稍蜷','浊响','清晰','稍凹','软粘',0.360,0.370,0],
+             ['浅白','蜷缩','浊响','模糊','平坦','硬滑',0.593,0.042,0],
+             ['青绿','蜷缩','沉闷','稍糊','稍凹','硬滑',0.719,0.103,0]]
     # 特征值列表
     labels = ['色泽', '根蒂', '敲击', '纹理', '脐部', '触感', '密度', '含糖率']
     # 特征对应的所有可能的情况
@@ -343,13 +345,17 @@ def createTree(dataSet, labels):
     classList = [example[-1] for example in dataSet]
     # 统计第一个标签出现的次数，与总标签个数比较，如果相等则说明当前列表中全部都是一种标签，此时停止划分
     if classList.count(classList[0]) == len(classList):
-        return classList[0]
+        # return classList[0]
+        if classList[0]==1:
+            return '好瓜'
+        else:
+            return '坏瓜'
     # 计算第一行有多少个数据，如果只有一个的话说明所有的特征属性都遍历完了，剩下的一个就是类别标签
     if len(dataSet[0]) == 1:
         # 返回剩下标签中出现次数较多的那个
         return majorityCnt(classList)
     # 选择最好的划分特征，得到该特征的下标
-    bestFeat = chooseBestFeatureToSplit(dataSet=dataSet, labels=labels)
+    bestFeat = chooseBestFeatureToSplit(dataSet=dataSet, labels=labels,ID3=False,C45=True)
     # 得到最好特征的名称
     bestFeatLabel = ''
     # 记录此刻是连续值还是离散值,1连续，2离散
