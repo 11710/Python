@@ -302,13 +302,12 @@ def chooseBestFeatureToSplit(dataSet, labels, ID3=True,C45=False,Gini=False):
             if not isinstance(dataSet[0][bestFeature], str):
                 flagSeries = 1
                 bestSeriesMid = bestMid
-        if GiniIndex <=  bestGiniIndex and Gini:
+        if GiniIndex <  bestGiniIndex and Gini:
             # 最好的信息增益率
             bestGiniIndex = GiniIndex
             # 新的最好的用来划分的特征值
             bestFeature = i
             flagSeries = 0
-
 
     # print('信息增益最大的特征为：' + labels[bestFeature])
     if flagSeries:
@@ -341,9 +340,7 @@ def createDataSet():
              ['青绿','蜷缩','沉闷','稍糊','稍凹','硬滑',0.719,0.103,0]]
     # 特征值列表
     labels = ['色泽', '根蒂', '敲击', '纹理', '脐部', '触感', '密度', '含糖率']
-
     return dataSet, labels
-
 
 def createDataSet2():
     train_data = [
@@ -382,12 +379,20 @@ def majorityCnt(classList):
     # 用来统计标签的票数
     classCount = collections.defaultdict(int)
     # 遍历所有的标签类别
+    max=0
     for vote in classList:
         classCount[vote] += 1
     # 从大到小排序
     sortedClassCount = sorted(classCount.items(), key=operator.itemgetter(1), reverse=True)
     # 返回次数最多的标签
-    return sortedClassCount[0][0]
+    if classList[0] == 1:
+        return '好瓜'
+    else:
+        return '坏瓜'
+    # return sortedClassCount[0][0]
+
+
+
 def createTree(dataSet, labels):
     """
     创建决策树
@@ -459,7 +464,13 @@ def createTree(dataSet, labels):
             # 得到剩下的特征标签
             subLabels = labels[:]
             # 递归调用，将数据集中该特征等于当前特征值的所有数据划分到当前节点下，递归调用时需要先将当前的特征去除掉
-            subTree = createTree(splitDataSet(dataSet=dataSet, axis=bestFeat, value=value), subLabels)
+            subdataSet = splitDataSet(dataSet=dataSet, axis=bestFeat, value=value)
+            #未剪枝
+            subTree = createTree(subdataSet, subLabels)
+
+            subclassList = [example[-1] for example in subdataSet]
+            #预剪枝
+            subTree2 = majorityCnt(subclassList)
             # 将子树归到分叉处下
             myTree[bestFeatLabel][value] = subTree
         return myTree
