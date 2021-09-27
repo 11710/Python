@@ -208,6 +208,8 @@ def calcInfoGain(dataSet ,featList, i, baseEntropy):
     newEntropy = 0.0
     # 计算信息增益率中的IV
     IV = 0
+    # 计算基尼指数
+    GiniIndex=0.0
     # 遍历现在有的特征的可能性
     for value in uniqueVals:
         # 在全部数据集的当前特征位置上，找到该特征值等于当前值的集合
@@ -218,17 +220,35 @@ def calcInfoGain(dataSet ,featList, i, baseEntropy):
         newEntropy += prob * calcShannonEnt(subDataSet)
         # 计算出当前的IV
         IV += prob*log(prob,2)
-
+        # 计算基尼指数
+        #print(calcGini(subDataSet))
+        GiniIndex += prob*calcGini(subDataSet)
     # 计算出“信息增益”
     infoGain = baseEntropy - newEntropy
     # 计算出信息增益率
     GainRatio = 0
     if IV!=0:
         GainRatio = -infoGain/IV
-    return infoGain, GainRatio
+    return infoGain, GainRatio, GiniIndex
 
+#计算数据集的基尼指数
+def calcGini(dataSet):
+    numEntries=len(dataSet)
+    labelCounts={}
+    #给所有可能分类创建字典
+    for featVec in dataSet:
+        currentLabel=featVec[-1]
+        if currentLabel not in labelCounts.keys():
+            labelCounts[currentLabel]=0
+        labelCounts[currentLabel]+=1
+    Gini=1.0
+    #以2为底数计算香农熵
+    for key in labelCounts:
+        prob = float(labelCounts[key])/numEntries
+        Gini-=prob*prob
+    return Gini
 
-def chooseBestFeatureToSplit(dataSet, labels, ID3=True,C45=False):
+def chooseBestFeatureToSplit(dataSet, labels, ID3=True,C45=False,Gini=False):
     """
     选择最好的数据集划分特征，根据信息增益值来计算，可处理连续值
     :param dataSet:
@@ -242,6 +262,9 @@ def chooseBestFeatureToSplit(dataSet, labels, ID3=True,C45=False):
     bestInfoGain = 0.0
     # 基础信息增益率为0.0
     bestGainRatio = 0.0
+    # 基础基尼指数为0.0
+    bestGiniIndex = 100000.0
+    GiniIndex = 0.0
     # 最好的特征值
     bestFeature = -1
     # 标记当前最好的特征值是不是连续值
@@ -254,7 +277,7 @@ def chooseBestFeatureToSplit(dataSet, labels, ID3=True,C45=False):
         # 得到数据集中所有的当前特征值列表
         featList = [example[i] for example in dataSet]
         if isinstance(featList[0], str):
-            infoGain,GainRatio = calcInfoGain(dataSet, featList, i, baseEntropy)
+            infoGain,GainRatio,GiniIndex = calcInfoGain(dataSet, featList, i, baseEntropy)
         else:
             # print('当前划分属性为：' + str(labels[i]))
             infoGain, bestMid, GainRatio = calcInfoGainForSeries(dataSet, i, baseEntropy)
@@ -279,6 +302,14 @@ def chooseBestFeatureToSplit(dataSet, labels, ID3=True,C45=False):
             if not isinstance(dataSet[0][bestFeature], str):
                 flagSeries = 1
                 bestSeriesMid = bestMid
+        if GiniIndex <=  bestGiniIndex and Gini:
+            # 最好的信息增益率
+            bestGiniIndex = GiniIndex
+            # 新的最好的用来划分的特征值
+            bestFeature = i
+            flagSeries = 0
+
+
     # print('信息增益最大的特征为：' + labels[bestFeature])
     if flagSeries:
         return bestFeature, bestSeriesMid
@@ -310,14 +341,37 @@ def createDataSet():
              ['青绿','蜷缩','沉闷','稍糊','稍凹','硬滑',0.719,0.103,0]]
     # 特征值列表
     labels = ['色泽', '根蒂', '敲击', '纹理', '脐部', '触感', '密度', '含糖率']
-    # 特征对应的所有可能的情况
-    labels_full = {}
 
-    for i in range(len(labels)):
-        labelList = [example[i] for example in dataSet]
-        uniqueLabel = set(labelList)
-        labels_full[labels[i]] = uniqueLabel
-    return dataSet, labels, labels_full
+    return dataSet, labels
+
+
+def createDataSet2():
+    train_data = [
+        ['青绿', '蜷缩', '浊响', '清晰', '凹陷', '硬滑', 1],
+        ['乌黑', '蜷缩', '沉闷', '清晰', '凹陷', '硬滑', 1],
+        ['乌黑', '蜷缩', '浊响', '清晰', '凹陷', '硬滑', 1],
+        ['青绿', '稍蜷', '浊响', '清晰', '稍凹', '软粘', 1],
+        ['乌黑', '稍蜷', '浊响', '稍糊', '稍凹', '软粘', 1],
+        ['青绿', '硬挺', '清脆', '清晰', '平坦', '软粘', 0],
+        ['浅白', '稍蜷', '沉闷', '稍糊', '凹陷', '硬滑', 0],
+        ['乌黑', '稍蜷', '浊响', '清晰', '稍凹', '软粘', 0],
+        ['浅白', '蜷缩', '浊响', '模糊', '平坦', '硬滑', 0],
+        ['青绿', '蜷缩', '沉闷', '稍糊', '稍凹', '硬滑', 0]
+    ]
+
+    test_data = [
+        ['青绿', '蜷缩', '沉闷', '清晰', '凹陷', '硬滑', '是'],
+        ['浅白', '蜷缩', '浊响', '清晰', '凹陷', '硬滑', '是'],
+        ['乌黑', '稍蜷', '浊响', '清晰', '稍凹', '硬滑', '是'],
+        ['乌黑', '稍蜷', '沉闷', '稍糊', '稍凹', '硬滑', '否'],
+        ['浅白', '硬挺', '清脆', '模糊', '平坦', '硬滑', '否'],
+        ['浅白', '蜷缩', '浊响', '模糊', '平坦', '软粘', '否'],
+        ['青绿', '稍蜷', '浊响', '稍糊', '凹陷', '硬滑', '否'],
+    ]
+
+    labels = ['色泽', '根蒂', '敲声', '纹理', '脐部', '触感']
+
+    return train_data, test_data, labels
 
 def majorityCnt(classList):
     """
@@ -355,7 +409,7 @@ def createTree(dataSet, labels):
         # 返回剩下标签中出现次数较多的那个
         return majorityCnt(classList)
     # 选择最好的划分特征，得到该特征的下标
-    bestFeat = chooseBestFeatureToSplit(dataSet=dataSet, labels=labels,ID3=False,C45=True)
+    bestFeat = chooseBestFeatureToSplit(dataSet=dataSet, labels=labels,ID3=False,C45=False,Gini=True)
     # 得到最好特征的名称
     bestFeatLabel = ''
     # 记录此刻是连续值还是离散值,1连续，2离散
@@ -414,8 +468,8 @@ if __name__ == '__main__':
     """
     处理连续值时候的决策树
     """
-    dataSet, labels, labels_full = createDataSet()
-    # chooseBestFeatureToSplit(dataSet, labels)
+    # dataSet, labels = createDataSet()
+    dataSet, test, labels = createDataSet2()
     myTree = createTree(dataSet, labels)
     print(myTree)
     createPlot(myTree)
