@@ -1,146 +1,296 @@
 #!/usr/bin/python
 # -*- coding: UTF-8 -*-
-
-
 import matplotlib.pyplot as plt
+# 定义文本框和箭头格式
+decisionNode = dict(boxstyle="round4", color='#3366FF')  #定义判断结点形态
+leafNode = dict(boxstyle="circle", color='#FF6633')  #定义叶结点形态
+arrow_args = dict(arrowstyle="<-", color='g')  #定义箭头
+plt.rcParams['font.sans-serif'] = ['SimHei']  # 指定默认字体
+plt.rcParams['axes.unicode_minus'] = False  # 解决保存图像时负号'-'显示为方块的问题
+#绘制带箭头的注释
+def plotNode(nodeTxt, centerPt, parentPt, nodeType):
+    createPlot.ax1.annotate(nodeTxt, xy=parentPt, xycoords='axes fraction',
+                            xytext=centerPt, textcoords='axes fraction',
+                            va="center", ha="center", bbox=nodeType, arrowprops=arrow_args)
 
-# 定义文本框 和 箭头格式 【 sawtooth 波浪方框, round4 矩形方框 , fc表示字体颜色的深浅 0.1~0.9 依次变浅，没错是变浅】
-decisionNode = dict(boxstyle="square", pad=0.5,fc="0.8")
-leafNode = dict(boxstyle="circle", fc="0.8")
-arrow_args = dict(arrowstyle="<-")
-# 控制显示中文
-from pylab import *
-mpl.rcParams['font.sans-serif'] = ['SimHei']
-
+#计算叶结点数
 def getNumLeafs(myTree):
     numLeafs = 0
     firstStr = list(myTree.keys())[0]
     secondDict = myTree[firstStr]
-    # 根节点开始遍历
     for key in secondDict.keys():
-        # 判断子节点是否为dict, 不是+1
-        if type(secondDict[key]) is dict:
+        if type(secondDict[key]).__name__ == 'dict':
             numLeafs += getNumLeafs(secondDict[key])
         else:
             numLeafs += 1
     return numLeafs
 
-
+#计算树的层数
 def getTreeDepth(myTree):
     maxDepth = 0
     firstStr = list(myTree.keys())[0]
     secondDict = myTree[firstStr]
-    # 根节点开始遍历
     for key in secondDict.keys():
-        # 判断子节点是不是dict, 求分枝的深度
-        # ----------写法1 start ---------------
-        if type(secondDict[key]) is dict:
+        if type(secondDict[key]).__name__ == 'dict':
             thisDepth = 1 + getTreeDepth(secondDict[key])
         else:
             thisDepth = 1
-        # ----------写法1 end ---------------
-
-        # ----------写法2 start --------------
-        # thisDepth = 1 + getTreeDepth(secondDict[key]) if type(secondDict[key]) is dict else 1
-        # ----------写法2 end --------------
-        # 记录最大的分支深度
-        maxDepth = max(maxDepth, thisDepth)
+        if thisDepth > maxDepth:
+            maxDepth = thisDepth
     return maxDepth
 
-
-def plotNode(nodeTxt, centerPt, parentPt, nodeType):
-    createPlot.ax1.annotate(nodeTxt, xy=parentPt,  xycoords='axes fraction', xytext=centerPt, textcoords='axes fraction', va="center", ha="center", bbox=nodeType, arrowprops=arrow_args)
-
-
+#在父子结点间填充文本信息
 def plotMidText(cntrPt, parentPt, txtString):
-    xMid = (parentPt[0] - cntrPt[0]) / 2 + cntrPt[0]
-    yMid = (parentPt[1] - cntrPt[1]) / 2 + cntrPt[1]
+    xMid = (parentPt[0] - cntrPt[0]) / 2.0 + cntrPt[0]
+    yMid = (parentPt[1] - cntrPt[1]) / 2.0 + cntrPt[1]
     createPlot.ax1.text(xMid, yMid, txtString, va="center", ha="center", rotation=30)
 
-
 def plotTree(myTree, parentPt, nodeTxt):
-    # 获取叶子节点的数量
     numLeafs = getNumLeafs(myTree)
-    # 获取树的深度
-    # depth = getTreeDepth(myTree)
-
-    # 找出第1个中心点的位置，然后与 parentPt定点进行划线
-    cntrPt = (plotTree.xOff + (1 + numLeafs) / 2 / plotTree.totalW, plotTree.yOff)
-    # print(cntrPt)
-    # 并打印输入对应的文字
-    plotMidText(cntrPt, parentPt, nodeTxt)
-
+    depth = getTreeDepth(myTree)
     firstStr = list(myTree.keys())[0]
-    # 可视化Node分支点
-    plotNode(firstStr, cntrPt, parentPt, decisionNode)
-    # 根节点的值
+    cntrPt = (plotTree.xOff + (1.0 + float(numLeafs)) / 2.0 / plotTree.totalW, plotTree.yOff)
+    plotMidText(cntrPt, parentPt, nodeTxt)  #在父子结点间填充文本信息
+    plotNode(firstStr, cntrPt, parentPt, decisionNode)  #绘制带箭头的注释
     secondDict = myTree[firstStr]
-    # y值 = 最高点-层数的高度[第二个节点位置]
-    plotTree.yOff = plotTree.yOff - 1 / plotTree.totalD
+    plotTree.yOff = plotTree.yOff - 1.0 / plotTree.totalD
     for key in secondDict.keys():
-        # 判断该节点是否是Node节点
-        if type(secondDict[key]) is dict:
-            # 如果是就递归调用[recursion]
+        if type(secondDict[key]).__name__ == 'dict':
             plotTree(secondDict[key], cntrPt, str(key))
         else:
-            # 如果不是，就在原来节点一半的地方找到节点的坐标
-            plotTree.xOff = plotTree.xOff + 1 / plotTree.totalW
-            # 可视化该节点位置
+            plotTree.xOff = plotTree.xOff + 1.0 / plotTree.totalW
             plotNode(secondDict[key], (plotTree.xOff, plotTree.yOff), cntrPt, leafNode)
-            # 并打印输入对应的文字
             plotMidText((plotTree.xOff, plotTree.yOff), cntrPt, str(key))
-    plotTree.yOff = plotTree.yOff + 1 / plotTree.totalD
-
+    plotTree.yOff = plotTree.yOff + 1.0 / plotTree.totalD
 
 def createPlot(inTree):
-    # 创建一个figure的模版
-    fig = plt.figure(1, facecolor='green')
+    fig = plt.figure(1, facecolor='white')
     fig.clf()
-
     axprops = dict(xticks=[], yticks=[])
-    # 表示创建一个1行，1列的图，createPlot.ax1 为第 1 个子图，
     createPlot.ax1 = plt.subplot(111, frameon=False, **axprops)
-
     plotTree.totalW = float(getNumLeafs(inTree))
     plotTree.totalD = float(getTreeDepth(inTree))
-    # 半个节点的长度
-    plotTree.xOff = -0.1 / plotTree.totalW
-    plotTree.yOff = 0.5
-    plotTree(inTree, (0.5, 0.5), '')
+    plotTree.xOff = -0.5 / plotTree.totalW
+    plotTree.yOff = 1.0
+    plotTree(inTree, (0.5, 1.0), '')
     plt.show()
 
 
-# # 测试画图
-# def createPlot():
-#     fig = plt.figure(1, facecolor='white')
-#     fig.clf()
-#     # ticks for demo puropses
-#     createPlot.ax1 = plt.subplot(111, frameon=False)
-#     plotNode('a decision node', (0.5, 0.1), (0.1, 0.5), decisionNode)
-#     plotNode('a leaf node', (0.8, 0.1), (0.3, 0.8), leafNode)
-#     plt.show()
+import collections
+from math import log
+import operator
+
+def calcShannonEnt(dataSet):
+    """
+    计算给定数据集的信息熵(香农熵)
+    :param dataSet:
+    :return:
+    """
+    # 计算出数据集的总数
+    numEntries = len(dataSet)
+    # 用来统计标签
+    labelCounts = collections.defaultdict(int)
+    # 循环整个数据集，得到数据的分类标签
+    for featVec in dataSet:
+        # 得到当前的标签
+        currentLabel = featVec[-1]
+        # 将对应的标签值加一
+        labelCounts[currentLabel] += 1
+    # 默认的信息熵
+    shannonEnt = 0.0
+    for key in labelCounts:
+        # 计算出当前分类标签占总标签的比例数
+        prob = float(labelCounts[key]) / numEntries
+        # 以2为底求对数
+        shannonEnt -= prob * log(prob, 2)
+    return shannonEnt
+
+def splitDataSetForSeries(dataSet, axis, value):
+    """
+    按照给定的数值，将数据集分为不大于和大于两部分
+    :param dataSet: 要划分的数据集
+    :param i: 特征值所在的下标
+    :param value: 划分值
+    :return:
+    """
+    # 用来保存不大于划分值的集合
+    eltDataSet = []
+    # 用来保存大于划分值的集合
+    gtDataSet = []
+    # 进行划分，保留该特征值
+    for feat in dataSet:
+        if feat[axis] <= value:
+            eltDataSet.append(feat)
+        else:
+            gtDataSet.append(feat)
+    return eltDataSet, gtDataSet
+
+def splitDataSet(dataSet, axis, value):
+    """
+    按照给定的特征值，将数据集划分
+    :param dataSet: 数据集
+    :param axis: 给定特征值的坐标
+    :param value: 给定特征值满足的条件，只有给定特征值等于这个value的时候才会返回
+    :return:
+    """
+    # 创建一个新的列表，防止对原来的列表进行修改
+    retDataSet = []
+    # 遍历整个数据集
+    for featVec in dataSet:
+        # 如果给定特征值等于想要的特征值
+        if featVec[axis] == value:
+            # 将该特征值前面的内容保存起来
+            reducedFeatVec = featVec[:axis]
+            # 将该特征值后面的内容保存起来，所以将给定特征值给去掉了
+            reducedFeatVec.extend(featVec[axis + 1:])
+            # 添加到返回列表中
+            retDataSet.append(reducedFeatVec)
+    return retDataSet
+
+def calcInfoGainForSeries(dataSet, i, baseEntropy):
+    """
+    计算连续值的信息增益和信息增益率
+    :param dataSet:整个数据集
+    :param i: 对应的特征值下标
+    :param baseEntropy: 基础信息熵
+    :return: 返回一个信息增益值，和当前的划分点
+    """
+    # 记录最大的信息增益
+    maxInfoGain = 0.0
+    # 最好的划分点
+    bestMid = -1
+    # 记录信息增益率
+    GainRatio = 0.0
+    # 得到数据集中所有的当前特征值列表
+    featList = [example[i] for example in dataSet]
+    # 得到分类列表
+    classList = [example[-1] for example in dataSet]
+    dictList = dict(zip(featList, classList))
+    # 将其从小到大排序，按照连续值的大小排列
+    sortedFeatList = sorted(dictList.items(), key=operator.itemgetter(0))
+    # 计算连续值有多少个
+    numberForFeatList = len(sortedFeatList)
+    # 计算划分点，保留三位小数
+    midFeatList = [round((sortedFeatList[i][0] + sortedFeatList[i+1][0])/2.0, 3)for i in range(numberForFeatList - 1)]
+    # 计算出各个划分点信息增益
+    for mid in midFeatList:
+        # 将连续值划分为不大于当前划分点和大于当前划分点两部分
+        eltDataSet, gtDataSet = splitDataSetForSeries(dataSet, i, mid)
+        # 计算两部分的特征值熵和权重的乘积之和
+        newEntropy = len(eltDataSet)/len(sortedFeatList)*calcShannonEnt(eltDataSet) + len(gtDataSet)/len(sortedFeatList)*calcShannonEnt(gtDataSet)
+        # 保存prob=|Dv|/|D|权重
+        prob1 = float(len(eltDataSet))/len(sortedFeatList)
+        prob2 = float(len(gtDataSet))/len(sortedFeatList)
+        IV = prob1*log(prob1, 2) + prob2*log(prob2,2)
+        # 计算出信息增益
+        infoGain = baseEntropy - newEntropy
+        # 计算出信息增益率
+        ratio = -infoGain/IV
+        # print('当前划分值为：' + str(mid) + '，此时的信息增益为：' + str(infoGain))
+        if infoGain > maxInfoGain:
+            bestMid = mid
+            maxInfoGain = infoGain
+            GainRatio = ratio
+    return maxInfoGain, bestMid, GainRatio
+
+def calcInfoGain(dataSet ,featList, i, baseEntropy):
+    """
+    计算信息增益和信息增益率
+    :param dataSet: 数据集
+    :param featList: 当前特征列表
+    :param i: 当前特征值下标
+    :param baseEntropy: 基础信息熵
+    :return:
+    """
+    # 将当前特征唯一化，也就是说当前特征值中共有多少种
+    uniqueVals = set(featList)
+    # 新的熵，代表当前特征值的熵
+    newEntropy = 0.0
+    # 计算信息增益率中的IV
+    IV = 0
+    # 遍历现在有的特征的可能性
+    for value in uniqueVals:
+        # 在全部数据集的当前特征位置上，找到该特征值等于当前值的集合
+        subDataSet = splitDataSet(dataSet=dataSet, axis=i, value=value)
+        # 计算出权重
+        prob = len(subDataSet) / float(len(dataSet))
+        # 计算出当前特征值的熵
+        newEntropy += prob * calcShannonEnt(subDataSet)
+        # 计算出当前的IV
+        IV += prob*log(prob,2)
+
+    # 计算出“信息增益”
+    infoGain = baseEntropy - newEntropy
+    # 计算出信息增益率
+    GainRatio = 0
+    if IV!=0:
+        GainRatio = -infoGain/IV
+    return infoGain, GainRatio
 
 
-# 测试数据集
-def retrieveTree(i):
-    listOfTrees = [
-        {'no surfacing': {0: 'no', 1: {'flippers': {0: 'no', 1: 'yes'}}}},
-        {'no surfacing': {0: 'no', 1: {'flippers': {0: {'head': {0: 'no', 1: 'yes'}}, 1: 'no'}}}}
-    ]
-    return listOfTrees[i]
-
-
-
-
-import math
-#import decisionTreePlot as dtPlot
-import numpy as np
+def chooseBestFeatureToSplit(dataSet, labels, ID3=True,C45=False):
+    """
+    选择最好的数据集划分特征，根据信息增益值来计算，可处理连续值
+    :param dataSet:
+    :return:
+    """
+    # 得到数据的特征值总数
+    numFeatures = len(dataSet[0]) - 1
+    # 计算出基础信息熵
+    baseEntropy = calcShannonEnt(dataSet)
+    # 基础信息增益为0.0
+    bestInfoGain = 0.0
+    # 基础信息增益率为0.0
+    bestGainRatio = 0.0
+    # 最好的特征值
+    bestFeature = -1
+    # 标记当前最好的特征值是不是连续值
+    flagSeries = 0
+    # 如果是连续值的话，用来记录连续值的划分点
+    bestSeriesMid = 0.0
+    bestMid = 0.0
+    # 对每个特征值进行求信息熵
+    for i in range(numFeatures):
+        # 得到数据集中所有的当前特征值列表
+        featList = [example[i] for example in dataSet]
+        if isinstance(featList[0], str):
+            infoGain,GainRatio = calcInfoGain(dataSet, featList, i, baseEntropy)
+        else:
+            # print('当前划分属性为：' + str(labels[i]))
+            infoGain, bestMid, GainRatio = calcInfoGainForSeries(dataSet, i, baseEntropy)
+        # print('当前特征值为：' + labels[i] + '，对应的信息增益值为：' + str(infoGain))
+        # 如果当前的信息增益比原来的大
+        if infoGain > bestInfoGain and ID3:
+            # 最好的信息增益
+            bestInfoGain = infoGain
+            # 新的最好的用来划分的特征值
+            bestFeature = i
+            flagSeries = 0
+            if not isinstance(dataSet[0][bestFeature], str):
+                flagSeries = 1
+                bestSeriesMid = bestMid
+        # 如果当前的信息增益率比原来的大
+        if GainRatio >  bestGainRatio and C45:
+            # 最好的信息增益率
+            bestGainRatio = GainRatio
+            # 新的最好的用来划分的特征值
+            bestFeature = i
+            flagSeries = 0
+            if not isinstance(dataSet[0][bestFeature], str):
+                flagSeries = 1
+                bestSeriesMid = bestMid
+    # print('信息增益最大的特征为：' + labels[bestFeature])
+    if flagSeries:
+        return bestFeature, bestSeriesMid
+    else:
+        return bestFeature
 
 def createDataSet():
     """
-    :return:返回的是创建好的数据集和标签类型
+    创建测试的数据集，里面的数值中具有连续值
+    :return:
     """
-    dataset=[['青绿','蜷缩','浊响','清晰','凹陷','硬滑',0.697,0.460,1],
+    dataSet =[['青绿','蜷缩','浊响','清晰','凹陷','硬滑',0.697,0.460,1],
              ['乌黑','蜷缩','沉闷','清晰','凹陷','硬滑',0.774,0.376,1],
              ['乌黑','蜷缩','浊响','清晰','凹陷','硬滑',0.634,0.264,1],
              ['青绿','蜷缩','沉闷','清晰','凹陷','硬滑',0.608,0.318,1],
@@ -158,256 +308,114 @@ def createDataSet():
              ['乌黑','稍蜷','浊响','清晰','稍凹','软粘',0.360,0.370,0],
              ['浅白','蜷缩','浊响','模糊','平坦','硬滑',0.593,0.042,0],
              ['青绿','蜷缩','沉闷','稍糊','稍凹','硬滑',0.719,0.103,0]]
-    labels=['色泽','根蒂','敲声','纹理','脐部','触感','密度','含糖率','好瓜']
-    return dataset,labels
-def calculateShannonEnt(dataset,labels):
-    """
-    :param dataset:
-    :return: 返回香农熵
-    """
-    # 1 计算除了密度和含糖率之外的香农熵
-    length=len(dataset)
-    yes=0
-    # 1.1 计算根节点的香农熵
-    for data in dataset:
-        if data[-1]==1:
-            yes=yes+1
-    p_yes=float(yes/length)
-    shannonEnt_root=-(p_yes*math.log(p_yes,2)+(1-p_yes)*math.log((1-p_yes),2))
-    shannonEnt={}
-    rangeNum=0
-    if '密度' in labels:
-        rangeNum=1
-        if '含糖率' in labels:
-            rangeNum+=1
-    for row in range(len(labels)-rangeNum-1):
-        # 1.2 遍历每一列，计算每一列的香农熵
-        # featureCounts是记录每个特征的出现的总数以及对应的好瓜次数
-        featureCounts = {}
-        for column in range(len(dataset)):
-            feature=dataset[column][row]
-            if feature not in featureCounts:
-                featureCounts[feature] = [0, 0]
-            featureCounts[feature][0] +=1
-            if dataset[column][-1]==1:
-                featureCounts[feature][1] += 1
-        shannonEnt[row] = 0.0
-        for key,value in featureCounts.items():
-            p=value[1]/value[0]
-            p0=value[0]/length
-            if p!=0 and p!=1:
-                shannonEnt0=-float(p0*(p*math.log(p,2)+(1-p)*math.log((1-p),2)))
-            else:
-                shannonEnt0=0
-            shannonEnt[row]+=shannonEnt0
-    # 2 计算密度和含糖率的熵
-    final = {}
-    density={}
-    sugarContent={}
-    # 2.1 获得相应行的密度以及含糖率
-    for column in range(len(dataset)):
-        if '密度' in labels:
-            density_index = labels.index('密度')
-            density[column]=dataset[column][density_index]
-        if '含糖率' in labels:
-            sugarcontent_index = labels.index('含糖率')
-            sugarContent[column]=dataset[column][sugarcontent_index]
-    density=sorted(density.items(),key=lambda x:x[1])
-    sugarContent=sorted(sugarContent.items(),key=lambda x:x[1])
-    # 2.2 计算相邻变量的中间值
-    middle_density=[]
-    middle_sugarContent=[]
-    for num in range(len(density)-1):
-        middle_density.append((density[num][1]+density[num+1][1])/2)
-        middle_sugarContent.append((sugarContent[num][1] + sugarContent[num + 1][1]) / 2)
-    # 2.3 计算相应的信息增益并记录划分点
-    gain_point_density=calculateENT(shannonEnt_root,middle_density,density,dataset)
-    gain_point_sugarContent = calculateENT(shannonEnt_root, middle_sugarContent, sugarContent,dataset)
-    # 排序
-    gain_point_density=sorted(gain_point_density.items(),key=lambda x:x[1],reverse=True)
-    gain_point_sugarContent=sorted(gain_point_sugarContent.items(),key=lambda x:x[1],reverse=True)
-    #  3. 计算熵增益
-    middle={}
-    for key, value in shannonEnt.items():
-        final[labels[key]] = shannonEnt_root - value
-    if len(gain_point_density)!=0:
-        final['密度'] = gain_point_density[0][1]
-        middle['密度']=middle_density[gain_point_density[0][0]]
-    if len(gain_point_sugarContent)!=0:
-        middle['含糖率'] = middle_sugarContent[gain_point_sugarContent[0][0]]
-        final['含糖率'] = gain_point_sugarContent[0][1]
-        print(middle_density[gain_point_density[0][0]])
-    return final,middle
-def calculateENT(shannonEnt_root,middle,data,dataset):
-    """
-    :param shannonEnt_root:根节点的信息熵
-    :param middle: 中位数组成的数组
-    :param data: 由行和值组成的字典集合
-    :return:返回信息增益
-    """
-    gain={}
-    for num in range(len(middle)):
-        # 1，计算左右的个数以及好瓜的个数
-        # left,right表示middle划分为两类
-        left = 0
-        right=0
-        # num_yes表示左右两边的是好瓜的个数
-        num_yes_left=0
-        num_yes_right = 0
-        middledata=middle[num]
-        for key in range(len(data)):
-            if data[key][1] < middledata:
-                left += 1
-                if dataset[data[key][0]][-1]==1:
-                    num_yes_left += 1
-            if data[key][1] > middledata:
-                right += 1
-                if dataset[data[key][0]][-1]==1:
-                    num_yes_right += 1
-        # 2，计算相应的信息熵
-        p_left=num_yes_left/left
-        p_right=num_yes_right/right
-        ent_left=calculate(p_left)
-        ent_right=calculate(p_right)
-        # 3,计算信息增益
-        gain[num]=shannonEnt_root-(left/len(dataset)*ent_left+right*ent_right/len(dataset))
-    return gain
+    # 特征值列表
+    labels = ['色泽', '根蒂', '敲击', '纹理', '脐部', '触感', '密度', '含糖率']
+    # 特征对应的所有可能的情况
+    labels_full = {}
 
-def calculate(p):
+    for i in range(len(labels)):
+        labelList = [example[i] for example in dataSet]
+        uniqueLabel = set(labelList)
+        labels_full[labels[i]] = uniqueLabel
+    return dataSet, labels, labels_full
+
+def majorityCnt(classList):
     """
-    :param p:
-    :return:返回计算好的信息熵
+    找到次数最多的类别标签
+    :param classList:
+    :return:
     """
-    shannonEnt=0
-    if p!=0 and p!=1.0:
-        shannonEnt = -float((p * math.log(p, 2) + (1 - p) * math.log((1 - p), 2)))
-    return shannonEnt
-def getNumbersByString(dataset,feature,labels):
+    # 用来统计标签的票数
+    classCount = collections.defaultdict(int)
+    # 遍历所有的标签类别
+    for vote in classList:
+        classCount[vote] += 1
+    # 从大到小排序
+    sortedClassCount = sorted(classCount.items(), key=operator.itemgetter(1), reverse=True)
+    # 返回次数最多的标签
+    return sortedClassCount[0][0]
+def createTree(dataSet, labels):
     """
-    :param feature: 输入的特征，如纹理等
-    :return:当选中一个特征作为划分节点的时候，需要知道该特征下会有几个特征值，以及每个特征对应的样本编号
+    创建决策树
+    :param dataSet: 数据集
+    :param labels: 特征标签
+    :return:
     """
-    featureSet={}
-    index=labels.index(feature)
-    for num in range(len(dataset)):
-        featureName=dataset[num][index]
-        if featureName not in featureSet:
-            featureSet[featureName]=[]
-        featureSet[featureName].append(num)
-    return featureSet
-def getNumbers(dataset,feature,labels,middle):
-    """
-    :param feature: 输入的特征，仅限密度和含糖率
-    :param middle: 密度和含糖率的二分点
-    :return:当选中一个特征作为划分节点的时候，需要知道该特征下会有几个特征值，以及每个特征对应的样本编号
-    """
-    featureSet={}
-    index=labels.index(feature)
-    for num in range(len(dataset)):
-        if '小于' not in featureSet:
-            featureSet['小于']=[]
-        if '大于' not in featureSet:
-            featureSet['大于']=[]
-        if dataset[num][index]<middle:
-            featureSet['小于'].append(num)
-        else:
-            featureSet['大于'].append(num)
-    return featureSet
-def modifyLabels(labels,dataset,labelName):
-    """
-    :param labels:输入的标签组合
-    :param dataset:输入的数据集合
-    :param labelName: 需要删除的标签名称
-    :return: 返回新的标签组合和数据集合
-    """
-    # 生成新的标签集合
-    num=labels.index(labelName)
-    del (dataset[num])
-    return dataset
-def modifyDataset(dataset,nums):
-    """
-    这个函数主要是在选择了将某个节点作为根节点（如纹理）划分之后
-    其必然有多个属性值（如清晰、稍糊、模糊等），根据将对应的属性值的样本划分到新的数据集中
-    :param dataset: 输入进来的dataset
-    :param nums: 如选择纹理作为划分，清晰对应的行有：[0, 1, 2, 3, 4, 5, 7, 9, 14]
-    :return: 将[0, 1, 2, 3, 4, 5, 7, 9, 14]对应的行整理输出作为新的数据集
-    """
-    newDataset=[]
-    for num in range(len(nums)):
-        newDataset.append(dataset[nums[num]])
-    return newDataset
-def DeleteFeaturesAndLabels(dataset,labels,feature):
-    """
-    :param dataset:输入进来的总的dataset
-    :param labels: 输入进来总的标签集合
-    :param feature: 选择分析的标签名，如纹理
-    :return: 删除了纹理对应的属性值（如清晰、稍糊、模糊等）之后新的数据集合标签集
-    """
-    num = labels.index(feature)
-    for key,value in dataset.items():
-        for num0 in range(len(value)):
-            del(value[num0][num])
-    # 将labels对应列删除
-    del (labels[num])
-    return dataset,labels
-def createTree(dataset, labels):
-    """
-    :return:创建分类树
-    """
-    classList=[example[-1] for example in dataset]
-    # 全部都是一个分类的时候结束
-    print("classlist:" , classList,"cla",classList[0])
-    if classList.count(classList[0])==len(classList):
+    # 拿到所有数据集的分类标签
+    classList = [example[-1] for example in dataSet]
+    # 统计第一个标签出现的次数，与总标签个数比较，如果相等则说明当前列表中全部都是一种标签，此时停止划分
+    if classList.count(classList[0]) == len(classList):
+        # return classList[0]
         if classList[0]==1:
-            return labels[-1]
+            return '好瓜'
         else:
             return '坏瓜'
-    # 只有最后一个样本的时候
-    if len(dataset[0])==1:
-        if dataset[-1]==1:
-            return labels[-1]
-        else:
-            return '坏瓜'
-    final, middle = calculateShannonEnt(dataset, labels)
-    final = sorted(final.items(), key=lambda x: x[1], reverse=True)
-    feature = final[0][0]
-    featureSet = {}
-    middleNum=0.0
-    if feature=='密度':
-        middleNum=middle['密度']
-        featureSet=getNumbers(dataset,feature,labels,middleNum)
-    elif feature=='含糖率':
-        middleNum=middle['含糖率']
-        featureSet = getNumbers(dataset, feature, labels, middleNum)
+    # 计算第一行有多少个数据，如果只有一个的话说明所有的特征属性都遍历完了，剩下的一个就是类别标签
+    if len(dataSet[0]) == 1:
+        # 返回剩下标签中出现次数较多的那个
+        return majorityCnt(classList)
+    # 选择最好的划分特征，得到该特征的下标
+    bestFeat = chooseBestFeatureToSplit(dataSet=dataSet, labels=labels,ID3=True,C45=False)
+    # 得到最好特征的名称
+    bestFeatLabel = ''
+    # 记录此刻是连续值还是离散值,1连续，2离散
+    flagSeries = 0
+    # 如果是连续值，记录连续值的划分点
+    midSeries = 0.0
+    # 如果是元组的话，说明此时是连续值
+    if isinstance(bestFeat, tuple):
+        # 重新修改分叉点信息
+        bestFeatLabel = str(labels[bestFeat[0]]) + '小于' + str(bestFeat[1]) + '?'
+        # 得到当前的划分点
+        midSeries = bestFeat[1]
+        # 得到下标值
+        bestFeat = bestFeat[0]
+        # 连续值标志
+        flagSeries = 1
     else:
-        featureSet= getNumbersByString(dataset,feature,labels)
-    #print(featureSet)
-    newdataset={}
-    myTree = {feature: {}}
-    for key,value in featureSet.items():
-        newdataset[key]=modifyDataset(dataset,value)
-    newdataset,labels=DeleteFeaturesAndLabels(newdataset,labels,feature)
-    for key,value in newdataset.items():
-        myTree[feature][key]=createTree(value,labels)
-    return myTree
-def majorityCnt(dataset, labels):
+        # 得到分叉点信息
+        bestFeatLabel = labels[bestFeat]
+        # 离散值标志
+        flagSeries = 0
+    # 使用一个字典来存储树结构，分叉处为划分的特征名称
+    myTree = {bestFeatLabel: {}}
+    # 得到当前特征标签的所有可能值
+    featValues = [example[bestFeat] for example in dataSet]
+    # 连续值处理
+    if flagSeries:
+        # 将连续值划分为不大于当前划分点和大于当前划分点两部分
+        eltDataSet, gtDataSet = splitDataSetForSeries(dataSet, bestFeat, midSeries)
+        # 得到剩下的特征标签
+        subLabels = labels[:]
+        # 递归处理小于划分点的子树
+        subTree = createTree(eltDataSet, subLabels)
+        myTree[bestFeatLabel]['小于'] = subTree
+        # 递归处理大于当前划分点的子树
+        subTree = createTree(gtDataSet, subLabels)
+        myTree[bestFeatLabel]['大于'] = subTree
+        return myTree
+    # 离散值处理
+    else:
+        # 将本次划分的特征值从列表中删除掉
+        del (labels[bestFeat])
+        # 唯一化，去掉重复的特征值
+        uniqueVals = set(featValues)
+        # 遍历所有的特征值
+        for value in uniqueVals:
+            # 得到剩下的特征标签
+            subLabels = labels[:]
+            # 递归调用，将数据集中该特征等于当前特征值的所有数据划分到当前节点下，递归调用时需要先将当前的特征去除掉
+            subTree = createTree(splitDataSet(dataSet=dataSet, axis=bestFeat, value=value), subLabels)
+            # 将子树归到分叉处下
+            myTree[bestFeatLabel][value] = subTree
+        return myTree
+
+if __name__ == '__main__':
     """
-    :param dataset:输入的数据集
-    :param labels:输入的标签集合
-    :return: 返回的是选择分类的标签名
+    处理连续值时候的决策树
     """
-    final,middle = calculateShannonEnt(dataset, labels)
-    final = sorted(final.items(), key=lambda x: x[1], reverse=True)
-    feature = final[0][0]
-    return feature
-
-
-
-if __name__ == "__main__":
-    dataset, labels = createDataSet()
-    myTree = createTree(dataset, labels)
+    dataSet, labels, labels_full = createDataSet()
+    # chooseBestFeatureToSplit(dataSet, labels)
+    myTree = createTree(dataSet, labels)
     print(myTree)
-    # dataset, labels1 = createDataSet()
-    #myTree = retrieveTree(1)
     createPlot(myTree)
-    #dtPlot.createPlot(myTree)
