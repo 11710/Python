@@ -4,23 +4,16 @@ from sklearn.preprocessing import LabelEncoder
 from sklearn.preprocessing import StandardScaler
 import matplotlib.pyplot as plt
 
-seed = 2020
-import random
-
-np.random.seed(seed)  # Numpy module.
-random.seed(seed)  # Python random module.
-plt.rcParams['font.sans-serif'] = ['SimHei']  # 用来正常显示中文标签
-plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
-plt.close('all')
-
 # 数据预处理
 def preprocess(data):
     # 将非数映射数字
     for title in data.columns:
         if data[title].dtype == 'object':
+            #是对不连续的数字或者文本进行编号
             encoder = LabelEncoder()
             data[title] = encoder.fit_transform(data[title])
             # 去均值和方差归一化
+    # 标准化数据，保证每个维度的特征数据方差为1，均值为0，使得预测结果不会被某些维度过大的特征值而主导
     ss = StandardScaler()
     X = data.drop('好瓜', axis=1)
     Y = data['好瓜']
